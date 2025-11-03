@@ -3,7 +3,11 @@ import React, { useEffect, useState } from 'react';
 import { Upload, Plus, Trash2, Eye, Camera } from 'lucide-react';
 import { apiService } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
-import categoryApi from '../../services/categoryApi';
+import categoryApi from '../../services/Product&categoryOptionsApi';
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from 'react-hook-form';
+import { ProductFormSchema } from '../../schemas/productSchema';
 
 interface ProductImage {
   id: string;
@@ -22,30 +26,93 @@ interface ProductVariant {
 }
 
 const ProductUpload: React.FC = () => {
-  const [productType, setProductType] = useState('clothing');
+  const [productType, setProductType] = useState('');
   const [category, setCategory] = useState('');
   const [subCategory, setSubCategory] = useState('');
-  const [gender, setGender] = useState('men');
+  const [gender, setGender] = useState('');
   const [images, setImages] = useState<ProductImage[]>([]);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [data, setData] = useState([]);
+  const [productTypeOptions, setProductTypeOptions] = useState([]);
+  const [genderOptions, setGenderOptions] = useState([]);
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [subcatOptions, setSubcatOptions] = useState([]);
   const navigate = useNavigate();
 
+  const { register,
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+   } = useForm<ProductFormValues>({
+      resolver : zodResolver(ProductFormSchema),
+      defaultValues:
+      {
+        productType: "",
+        gender: "",
+        category: "",
+        subCategory: "",
+        productName: "",
+        brand: "",
+        shortDescription: "",
+        description: "",
+        imageUrl: "",
+      }
+    })
+
   useEffect(() => {
-    const fetchCategories = async () => {
+    const initializeData = async () => {
       try {
-        const categories = await categoryApi.getAllCategories();
-        console.log(categories);
-        setData(categories);
+        const productTypes = await categoryApi.getProductTypes();
+        setProductTypeOptions(productTypes);
+
+        const genders = await categoryApi.getGenders();
+        setGenderOptions(genders);
+
       } catch (error) {
-        console.error("Error fetching categories:", error);
+        console.error("Initialization error:", error);
       }
     };
-    fetchCategories();
-  }, [])
-  
+
+    initializeData();
+  }, []);
+
+
+  const fetchCategories = async (e) => {
+    try {
+      const selectedGender = e.target.value;
+      setGender(selectedGender);
+      const productTypeId = productTypeOptions.find(p => p.name === productType)?.id;
+      const genderId = genderOptions.find(g => g.gender === selectedGender)?.id;
+      const payload = {
+        productTypeId,
+        genderId
+      };
+
+      const categories = await categoryApi.getCategories(payload);
+      setCategoryOptions(categories);
+      console.log(categoryOptions)
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
+
+  const fetchSubCategories = async (e) => {
+    try {
+      const category = e.target.value;
+      setCategory(category);
+      const categoryId = categoryOptions.find(c => c.name === category)?.id;
+      const SubCategories = await categoryApi.getSubCategories(categoryId);
+      setSubcatOptions(SubCategories);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
+
+
+
 
   const [formData, setFormData] = useState({
     // Basic Info
@@ -106,35 +173,6 @@ const ProductUpload: React.FC = () => {
     status: 'draft'
   });
 
-  const clothingCategories = {
-    men: {
-      'topwear': ['T-Shirts', 'Shirts', 'Polo T-Shirts', 'Hoodies & Sweatshirts', 'Jackets', 'Blazers', 'Sweaters', 'Tank Tops'],
-      'bottomwear': ['Jeans', 'Trousers', 'Shorts', 'Track Pants', 'Joggers', 'Chinos'],
-      'innerwear': ['Briefs', 'Boxers', 'Vests', 'Thermals'],
-      'ethnicwear': ['Kurtas', 'Sherwanis', 'Nehru Jackets', 'Dhotis', 'Lungis'],
-      'activewear': ['Sports T-Shirts', 'Track Suits', 'Gym Wear', 'Running Shorts'],
-      'winterwear': ['Jackets', 'Coats', 'Sweaters', 'Hoodies', 'Thermals']
-    },
-    women: {
-      'topwear': ['T-Shirts', 'Tops', 'Shirts', 'Blouses', 'Crop Tops', 'Tank Tops', 'Tunics'],
-      'bottomwear': ['Jeans', 'Trousers', 'Shorts', 'Skirts', 'Palazzos', 'Leggings'],
-      'dresses': ['Casual Dresses', 'Party Dresses', 'Maxi Dresses', 'Mini Dresses', 'Midi Dresses'],
-      'ethnicwear': ['Sarees', 'Kurtas & Kurtis', 'Lehenga Choli', 'Salwar Suits', 'Ethnic Dresses'],
-      'innerwear': ['Bras', 'Panties', 'Camisoles', 'Shapewear', 'Nightwear'],
-      'activewear': ['Sports Bras', 'Yoga Pants', 'Track Suits', 'Gym Wear'],
-      'winterwear': ['Jackets', 'Coats', 'Sweaters', 'Cardigans', 'Shawls']
-    }
-  };
-
-  const footwearCategories = {
-    men: ['Casual Shoes', 'Formal Shoes', 'Sports Shoes', 'Sneakers', 'Sandals', 'Flip Flops', 'Boots', 'Loafers'],
-    women: ['Heels', 'Flats', 'Sneakers', 'Sandals', 'Boots', 'Wedges', 'Sports Shoes', 'Ethnic Footwear']
-  };
-
-  const accessoryCategories = {
-    men: ['Watches', 'Belts', 'Wallets', 'Sunglasses', 'Bags', 'Ties', 'Cufflinks', 'Caps & Hats'],
-    women: ['Jewellery', 'Watches', 'Handbags', 'Sunglasses', 'Belts', 'Scarves', 'Hair Accessories', 'Makeup']
-  };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -176,7 +214,7 @@ const ProductUpload: React.FC = () => {
   };
 
   const updateVariant = (id: string, field: string, value: string | number) => {
-    setVariants(prev => prev.map(variant => 
+    setVariants(prev => prev.map(variant =>
       variant.id === id ? { ...variant, [field]: value } : variant
     ));
   };
@@ -234,7 +272,7 @@ const ProductUpload: React.FC = () => {
     setProductType('clothing');
   };
 
-  const handleSubmit = async (status: 'draft' | 'active') => {
+  const Submit = async (status: 'draft' | 'active') => {
     setIsSubmitting(true);
     setSubmitError(null);
     try {
@@ -244,7 +282,6 @@ const ProductUpload: React.FC = () => {
         price: parseFloat(formData.sellingPrice || '0') || 0,
         stock: parseInt(formData.totalStock || '0') || 0,
         category: category || 'General',
-        // Only save the explicit URL field; never persist local preview URLs
         image_url: formData.imageUrl || '',
       };
 
@@ -261,25 +298,7 @@ const ProductUpload: React.FC = () => {
     }
   };
 
-  const getCurrentCategories = () => {
-    if (productType === 'clothing') return clothingCategories[gender as keyof typeof clothingCategories];
-    if (productType === 'footwear') return footwearCategories[gender as keyof typeof footwearCategories];
-    if (productType === 'accessories') return accessoryCategories[gender as keyof typeof accessoryCategories];
-    return {};
-  };
 
-  // Helper to render category options for both object (clothing) and array (others)
-  const renderCategoryOptions = () => {
-    const current = getCurrentCategories();
-    if (Array.isArray(current)) {
-      return current.map((cat: string) => (
-        <option key={cat} value={cat}>{cat}</option>
-      ));
-    }
-    return Object.keys(current).map((cat) => (
-      <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
-    ));
-  };
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white">
@@ -300,12 +319,18 @@ const ProductUpload: React.FC = () => {
                 onChange={(e) => {
                   setProductType(e.target.value);
                   setCategory('');
+                  setGender('');
                   setSubCategory('');
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full capitalize px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >
-                
+                <option value="">Select Product Type</option>
+                {
+                  productTypeOptions.map((item) => (
+                    <option key={item.id} value={item.name} className='capitalize'>{item.name}</option>
+                  ))
+                }
               </select>
             </div>
 
@@ -313,16 +338,16 @@ const ProductUpload: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">Gender *</label>
               <select
                 value={gender}
-                onChange={(e) => {
-                  setGender(e.target.value);
-                  setCategory('');
-                  setSubCategory('');
-                }}
+                onChange={fetchCategories}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >
-                <option value="men">Men</option>
-                <option value="women">Women</option>
+                <option value="">Select Gender</option>
+                {
+                  genderOptions.map((item) => (
+                    <option key={item.id} value={item.gender} className='capitalize'>{item.gender}</option>
+                  ))
+                }
               </select>
             </div>
 
@@ -330,15 +355,16 @@ const ProductUpload: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
               <select
                 value={category}
-                onChange={(e) => {
-                  setCategory(e.target.value);
-                  setSubCategory('');
-                }}
+                onChange={fetchSubCategories}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >
                 <option value="">Select Category</option>
-                {renderCategoryOptions()}
+                {
+                  categoryOptions.map((item) => (
+                    <option key={item.id} value={item.name} className='capitalize'>{item.name}</option>
+                  ))
+                }
               </select>
             </div>
           </div>
@@ -353,9 +379,11 @@ const ProductUpload: React.FC = () => {
                 required
               >
                 <option value="">Select Sub Category</option>
-                {getCurrentCategories()[category]?.map((subCat: string) => (
-                  <option key={subCat} value={subCat}>{subCat}</option>
-                ))}
+                {
+                  subcatOptions.map((item) => (
+                    <option key={item.id} value={item.name} className='capitalize'>{item.name}</option>
+                  ))
+                }
               </select>
             </div>
           )}
@@ -456,9 +484,8 @@ const ProductUpload: React.FC = () => {
                     <img
                       src={image.url}
                       alt="Product"
-                      className={`w-full h-32 object-cover rounded-lg border-2 ${
-                        image.isPrimary ? 'border-blue-500' : 'border-gray-200'
-                      }`}
+                      className={`w-full h-32 object-cover rounded-lg border-2 ${image.isPrimary ? 'border-blue-500' : 'border-gray-200'
+                        }`}
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-2">
                       <button
@@ -952,7 +979,7 @@ const ProductUpload: React.FC = () => {
           <div className="flex items-center space-x-4">
             <button
               type="button"
-              onClick={() => handleSubmit('draft')}
+              onClick={() => Submit('draft')}
               disabled={isSubmitting}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
             >

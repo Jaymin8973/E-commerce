@@ -92,38 +92,11 @@ export const deleteSubcategory = async (req, res) => {
 };
 
 
-const getSubcategoriesByGender = async (req, res, gender) => {
-  try {
-    const subcategories = await Subcategory.findAll({
-      where: { gender },
-    });
 
-    if (!subcategories.length)
-      return res.status(404).json({ message: `No ${gender} subcategories found` });
-
-    return res.json(subcategories);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to fetch subcategories" });
-  }
-};
 
 export const getAllCategories = async (req, res) => {
   try {
-    const categories = await Category.findAll({
-      include: [
-        {
-          model: ProductType,
-          attributes: ["id", "name"],
-        },
-        {
-          model: Subcategory,
-          attributes: ["id", "name", "gender"],
-        },
-      ],
-      attributes: ["id", "name", "slug", "description"],
-      order: [["id", "ASC"]],
-    });
+    const categories = await Category.findAll();
 
     if (!categories.length) {
       return res.status(404).json({ message: "No categories found" });
@@ -136,6 +109,23 @@ export const getAllCategories = async (req, res) => {
   }
 };
 
-export const getMenSubcategories = (req, res) => getSubcategoriesByGender(req, res, "Men");
-export const getWomenSubcategories = (req, res) => getSubcategoriesByGender(req, res, "Women");
-export const getUnisexSubcategories = (req, res) => getSubcategoriesByGender(req, res, "Unisex");
+export const getSubCatOptions = async (req, res) => {
+
+  const {categoryId} = req.body;
+  try {
+    const SubCategories = await Subcategory.findAll({
+      where: {
+        categoryId,
+      }
+    });
+
+    if (!SubCategories.length) {
+      return res.status(404).json();
+    }
+
+    return res.status(200).json(SubCategories);
+  } catch (error) {
+    console.error("❌ Error fetching categories:", error);
+    res.status(500).json({ error: "Failed to fetch categories" });
+  }
+};

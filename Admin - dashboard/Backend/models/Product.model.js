@@ -12,6 +12,7 @@ const Product = sequelize.define(
     productName: { type: DataTypes.STRING(150), allowNull: false },
     brand: { type: DataTypes.STRING(100), allowNull: false },
     shortDescription: { type: DataTypes.TEXT },
+    status: { type: DataTypes.ENUM("active", "draft" , "inactive"), defaultValue: "active" },
     imageUrl: { type: DataTypes.STRING },
     mrp: { type: DataTypes.FLOAT, allowNull: false },
     sellingPrice: { type: DataTypes.FLOAT, allowNull: false },

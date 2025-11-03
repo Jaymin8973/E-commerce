@@ -91,3 +91,22 @@ export const deleteCategory = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
+
+
+export const CategorybyOptions = async (req, res) => {
+  try {
+    const {productTypeId , genderId} = req.body;
+    
+    const categories = await Category.findAll({
+      where: {
+        productTypeId,
+        genderId,
+      }
+    });
+    if (!categories) return res.json();
+    return res.json(categories);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: err.message });
+  }
+};

@@ -3,10 +3,14 @@ import fs from "fs";
 import path from "path";
 import { Op } from "sequelize";
 import {
+  Category,
+  Gender,
   Product,
   ProductImage,
+  ProductType,
   ProductVariant,
-  sequelize, 
+  sequelize,
+  Subcategory,
 } from "../models/index.js";
 import ProductDetailAccessory from "../models/productDetailAccessory.model.js";
 import ProductDetailClothing from "../models/productDetailClothing.model.js";
@@ -45,14 +49,21 @@ export const createProduct = async (req, res) => {
   try {
     // parse body fields (numbers)
     const body = req.body;
+    const productTypeRecord = await ProductType.findOne({ where: { name: body.productType } });
+    const genderRecord = await Gender.findOne({ where: { name: body.gender } });
+    const categoryRecord = await Category.findOne({ where: { name: body.category } });
+    const subcategoryRecord = await Subcategory.findOne({ where: { name: body.subcategory } });
 
+    if (!productTypeRecord || !genderRecord || !categoryRecord || !subcategoryRecord) {
+      return res.status(400).json({ message: "Invalid productType, gender, category, or subcategory name" });
+    }
     // create product
     const product = await Product.create(
       {
-        productTypeId: body.productTypeId,
-        categoryId: body.categoryId,
-        subcategoryId: body.subcategoryId || null,
-        gender: body.gender || "unisex",
+        productTypeId: productTypeRecord.id,
+        genderId: genderRecord.id,
+        categoryId: categoryRecord.id,
+        subcategoryId: subcategoryRecord.id,
         productName: body.productName,
         brand: body.brand,
         shortDescription: body.shortDescription,

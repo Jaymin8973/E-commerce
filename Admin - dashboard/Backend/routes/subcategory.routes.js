@@ -5,18 +5,15 @@ import {
   getSubcategoryById,
   updateSubcategory,
   deleteSubcategory,
-  getMenSubcategories,
-  getWomenSubcategories,
-  getUnisexSubcategories,
   getAllCategories,
+  getSubCatOptions,
 } from "../controllers/subcategory.controller.js";
 
 const router = express.Router();
 
 router.get("/", getAllCategories);
-router.get("/men", getMenSubcategories);
-router.get("/women", getWomenSubcategories);
-router.get("/unisex", getUnisexSubcategories);
+router.post("/options", getSubCatOptions);
+
 // admin protected
 router.post("/",   createSubcategory);
 router.get("/:id", getSubcategoryById);
