@@ -6,8 +6,10 @@ import { useNavigate } from 'react-router-dom';
 import categoryApi from '../../services/Product&categoryOptionsApi';
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 import { ProductFormSchema } from '../../schemas/productSchema';
+import ProductApi from '../../services/productApi';
+
 
 interface ProductImage {
   id: string;
@@ -32,7 +34,6 @@ const ProductUpload: React.FC = () => {
   const [gender, setGender] = useState('');
   const [images, setImages] = useState<ProductImage[]>([]);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  // const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [productTypeOptions, setProductTypeOptions] = useState([]);
   const [genderOptions, setGenderOptions] = useState([]);
@@ -46,21 +47,26 @@ const ProductUpload: React.FC = () => {
     watch,
     setValue,
     formState: { errors, isSubmitting },
-   } = useForm<ProductFormValues>({
-      resolver : zodResolver(ProductFormSchema),
-      defaultValues:
-      {
-        productType: "",
-        gender: "",
-        category: "",
-        subCategory: "",
-        productName: "",
-        brand: "",
-        shortDescription: "",
-        description: "",
-        imageUrl: "",
-      }
-    })
+  } = useForm<ProductFormValues>({
+    resolver: zodResolver(ProductFormSchema),
+    defaultValues:
+    {
+      productType: "",
+      gender: "",
+      category: "",
+      subCategory: "",
+      productName: "",
+      brand: "",
+      shortDescription: "",
+      description: "",
+      imageUrl: "",
+    }
+  })
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "variants",
+  });
 
   useEffect(() => {
     const initializeData = async () => {
@@ -298,7 +304,22 @@ const ProductUpload: React.FC = () => {
     }
   };
 
+  const SubmitHandle = async (data: ProductFormType, status: 'draft' | 'active') => {
+    try {
+      const payload = {
+        ...data,
+        status: status,
+      }
 
+      console.log(payload)
+
+      const Product = ProductApi.addProduct(payload)
+      console.log(Product)
+      resetForm();
+    } catch (error) {
+      console.log(error.message)
+    }
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white">
@@ -307,7 +328,7 @@ const ProductUpload: React.FC = () => {
         <p className="text-gray-600">Create a new product listing for your marketplace</p>
       </div>
 
-      <form className="space-y-8">
+      <form className="space-y-8" onSubmit={() => handleSubmit(SubmitHandle('active'))}>
         {/* Product Type Selection */}
         <div className="bg-gray-50 p-6 rounded-lg">
           <h2 className="text-xl font-semibold mb-4">Product Type & Category</h2>
@@ -315,6 +336,7 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Product Type *</label>
               <select
+                {...register("productType")}
                 value={productType}
                 onChange={(e) => {
                   setProductType(e.target.value);
@@ -337,6 +359,7 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Gender *</label>
               <select
+                {...register("gender")}
                 value={gender}
                 onChange={fetchCategories}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -354,6 +377,7 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
               <select
+                {...register("category")}
                 value={category}
                 onChange={fetchSubCategories}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -373,6 +397,7 @@ const ProductUpload: React.FC = () => {
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Sub Category *</label>
               <select
+                {...register("subcategory")}
                 value={subCategory}
                 onChange={(e) => setSubCategory(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -390,15 +415,14 @@ const ProductUpload: React.FC = () => {
         </div>
 
         {/* Basic Information */}
-        <div className="bg-gray-50 p-6 rounded-lg">
+        <div className="bg-gray-50 p-6 rounded-lg">   
           <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
               <input
+                {...register("productName")}
                 type="text"
-                value={formData.productName}
-                onChange={(e) => handleInputChange('productName', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter product name"
                 required
@@ -408,8 +432,8 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Brand *</label>
               <input
+                {...register("brand")}
                 type="text"
-                value={formData.brand}
                 onChange={(e) => handleInputChange('brand', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter brand name"
@@ -420,9 +444,8 @@ const ProductUpload: React.FC = () => {
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Short Description</label>
               <input
+                {...register("shortDescription")}
                 type="text"
-                value={formData.shortDescription}
-                onChange={(e) => handleInputChange('shortDescription', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Brief product description (max 160 characters)"
                 maxLength={160}
@@ -432,7 +455,7 @@ const ProductUpload: React.FC = () => {
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Detailed Description *</label>
               <textarea
-                value={formData.description}
+                {...register("description")}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -444,9 +467,8 @@ const ProductUpload: React.FC = () => {
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Image URL</label>
               <input
+                {...register("imageUrl")}
                 type="url"
-                value={formData.imageUrl}
-                onChange={(e) => handleInputChange('imageUrl', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="https://example.com/image.jpg"
               />
@@ -524,9 +546,8 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">MRP (₹) *</label>
               <input
+                {...register("mrp")}
                 type="number"
-                value={formData.mrp}
-                onChange={(e) => handleInputChange('mrp', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
                 required
@@ -536,9 +557,8 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text sm font-medium text-gray-700 mb-2">Selling Price (₹) *</label>
               <input
+                {...register("sellingPrice")}
                 type="number"
-                value={formData.sellingPrice}
-                onChange={(e) => handleInputChange('sellingPrice', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
                 required
@@ -548,9 +568,8 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Discount (%)</label>
               <input
+                {...register("discountPercent")}
                 type="number"
-                value={formData.discount}
-                onChange={(e) => handleInputChange('discount', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
                 max="100"
@@ -567,9 +586,8 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Material</label>
                 <input
+                  {...register("clothing.material")}
                   type="text"
-                  value={formData.material}
-                  onChange={(e) => handleInputChange('material', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., Cotton, Polyester"
                 />
@@ -578,9 +596,8 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Fabric</label>
                 <input
+                  {...register("clothing.fabric")}
                   type="text"
-                  value={formData.fabric}
-                  onChange={(e) => handleInputChange('fabric', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., Denim, Silk"
                 />
@@ -589,8 +606,7 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Pattern</label>
                 <select
-                  value={formData.pattern}
-                  onChange={(e) => handleInputChange('pattern', e.target.value)}
+                  {...register("clothing.pattern")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Pattern</option>
@@ -607,8 +623,7 @@ const ProductUpload: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Collar Type</label>
                   <select
-                    value={formData.collarType}
-                    onChange={(e) => handleInputChange('collarType', e.target.value)}
+                    {...register("clothing.collarType")}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select Collar</option>
@@ -625,8 +640,7 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Sleeve Type</label>
                 <select
-                  value={formData.sleeveType}
-                  onChange={(e) => handleInputChange('sleeveType', e.target.value)}
+                  {...register("clothing.sleeveType")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Sleeve</option>
@@ -640,8 +654,7 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Fit</label>
                 <select
-                  value={formData.fit}
-                  onChange={(e) => handleInputChange('fit', e.target.value)}
+                  {...register("clothing.fit")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Fit</option>
@@ -656,8 +669,7 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Occasion</label>
                 <select
-                  value={formData.occasion}
-                  onChange={(e) => handleInputChange('occasion', e.target.value)}
+                  {...register("clothing.occasion")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Occasion</option>
@@ -673,8 +685,7 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Season</label>
                 <select
-                  value={formData.season}
-                  onChange={(e) => handleInputChange('season', e.target.value)}
+                  {...register("clothing.season")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Season</option>
@@ -688,8 +699,7 @@ const ProductUpload: React.FC = () => {
               <div className="md:col-span-2 lg:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Care Instructions</label>
                 <textarea
-                  value={formData.careInstructions}
-                  onChange={(e) => handleInputChange('careInstructions', e.target.value)}
+                  {...register("clothing.careInstructions")}
                   rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., Machine wash cold, Do not bleach"
@@ -707,8 +717,7 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Heel Height</label>
                 <select
-                  value={formData.heelHeight}
-                  onChange={(e) => handleInputChange('heelHeight', e.target.value)}
+                  {...register("footwear.heelHeight")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Height</option>
@@ -723,9 +732,8 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Sole Material</label>
                 <input
+                  {...register("footwear.soleMaterial")}
                   type="text"
-                  value={formData.soleMaterial}
-                  onChange={(e) => handleInputChange('soleMaterial', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., Rubber, Leather"
                 />
@@ -734,9 +742,8 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Upper Material</label>
                 <input
+                  {...register("footwear.upperMaterial")}
                   type="text"
-                  value={formData.upperMaterial}
-                  onChange={(e) => handleInputChange('upperMaterial', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., Leather, Canvas"
                 />
@@ -745,8 +752,7 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Closure</label>
                 <select
-                  value={formData.closure}
-                  onChange={(e) => handleInputChange('closure', e.target.value)}
+                  {...register("footwear.closure")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Closure</option>
@@ -769,8 +775,7 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Accessory Type</label>
                 <select
-                  value={formData.accessoryType}
-                  onChange={(e) => handleInputChange('accessoryType', e.target.value)}
+                  {...register("accessories.accessoryType")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Type</option>
@@ -783,9 +788,8 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Dimensions</label>
                 <input
+                  {...register("accessories.dimensions")}
                   type="text"
-                  value={formData.dimensions}
-                  onChange={(e) => handleInputChange('dimensions', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., 10cm x 5cm x 2cm"
                 />
@@ -794,9 +798,8 @@ const ProductUpload: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Weight (grams)</label>
                 <input
+                  {...register("accessories.weight")}
                   type="number"
-                  value={formData.weight}
-                  onChange={(e) => handleInputChange('weight', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="0"
                 />
@@ -811,7 +814,7 @@ const ProductUpload: React.FC = () => {
             <h2 className="text-xl font-semibold">Product Variants</h2>
             <button
               type="button"
-              onClick={addVariant}
+              onClick={() => append({ size: "", color: "", stock: "", price: "" })}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
               <Plus className="w-4 h-4" />
@@ -819,19 +822,18 @@ const ProductUpload: React.FC = () => {
             </button>
           </div>
 
-          {variants.length === 0 ? (
+          {fields.length === 0 ? (
             <p className="text-gray-500 text-center py-8">No variants added. Click "Add Variant" to create size/color combinations.</p>
           ) : (
             <div className="space-y-4">
-              {variants.map((variant) => (
-                <div key={variant.id} className="bg-white p-4 rounded-lg border">
+              {fields.map((field, index) => (
+                <div key={field.id} className="bg-white p-4 rounded-lg border">
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Size</label>
                       <input
+                        {...register(`variants.${index}.size`)}
                         type="text"
-                        value={variant.size}
-                        onChange={(e) => updateVariant(variant.id, 'size', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="S, M, L, XL"
                       />
@@ -839,9 +841,8 @@ const ProductUpload: React.FC = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
                       <input
+                        {...register(`variants.${index}.color`)}
                         type="text"
-                        value={variant.color}
-                        onChange={(e) => updateVariant(variant.id, 'color', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Red, Blue, etc."
                       />
@@ -850,8 +851,7 @@ const ProductUpload: React.FC = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
                       <input
                         type="number"
-                        value={variant.stock}
-                        onChange={(e) => updateVariant(variant.id, 'stock', parseInt(e.target.value) || 0)}
+                        {...register(`variants.${index}.stock`)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="0"
                       />
@@ -860,8 +860,7 @@ const ProductUpload: React.FC = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Price (₹)</label>
                       <input
                         type="number"
-                        value={variant.price}
-                        onChange={(e) => updateVariant(variant.id, 'price', parseFloat(e.target.value) || 0)}
+                        {...register(`variants.${index}.price`)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="0"
                       />
@@ -869,7 +868,7 @@ const ProductUpload: React.FC = () => {
                     <div className="flex items-end">
                       <button
                         type="button"
-                        onClick={() => removeVariant(variant.id)}
+                        onClick={() => remove(index)}
                         className="w-full px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center justify-center"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -889,9 +888,8 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">SKU *</label>
               <input
+                {...register("sku")}
                 type="text"
-                value={formData.sku}
-                onChange={(e) => handleInputChange('sku', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Product SKU"
                 required
@@ -901,9 +899,8 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">HSN Code</label>
               <input
+                {...register("hsnCode")}
                 type="text"
-                value={formData.hsn}
-                onChange={(e) => handleInputChange('hsn', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="HSN Code"
               />
@@ -912,9 +909,8 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Total Stock</label>
               <input
+                {...register("totalStock")}
                 type="number"
-                value={formData.totalStock}
-                onChange={(e) => handleInputChange('totalStock', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
@@ -923,9 +919,8 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Low Stock Alert</label>
               <input
+                {...register("lowStockAlert")}
                 type="number"
-                value={formData.lowStockAlert}
-                onChange={(e) => handleInputChange('lowStockAlert', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="5"
               />
@@ -940,9 +935,8 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Meta Title</label>
               <input
+                {...register("metaTitle")}
                 type="text"
-                value={formData.metaTitle}
-                onChange={(e) => handleInputChange('metaTitle', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="SEO title for search engines"
                 maxLength={60}
@@ -952,8 +946,7 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Meta Description</label>
               <textarea
-                value={formData.metaDescription}
-                onChange={(e) => handleInputChange('metaDescription', e.target.value)}
+                {...register("metaDescription")}
                 rows={2}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="SEO description for search engines"
@@ -964,9 +957,8 @@ const ProductUpload: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
               <input
+                {...register("tags")}
                 type="text"
-                value={formData.tags}
-                onChange={(e) => handleInputChange('tags', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Comma-separated tags (e.g., casual, cotton, summer)"
               />
@@ -978,16 +970,16 @@ const ProductUpload: React.FC = () => {
         <div className="flex items-center justify-between pt-6 border-t border-gray-200">
           <div className="flex items-center space-x-4">
             <button
-              type="button"
-              onClick={() => Submit('draft')}
+              type="submit"
+              onClick={handleSubmit((data) => SubmitHandle(data, "draft"))}
               disabled={isSubmitting}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
             >
               {isSubmitting ? 'Saving...' : 'Save as Draft'}
             </button>
             <button
-              type="button"
-              onClick={() => handleSubmit('active')}
+              type="submit"
+              onClick={handleSubmit((data) => SubmitHandle(data, "active"))}
               disabled={isSubmitting}
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
             >

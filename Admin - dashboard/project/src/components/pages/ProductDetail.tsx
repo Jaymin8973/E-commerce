@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { apiService, type Product } from '../../services/api';
+import {  type Product } from '../../services/api';
+import ProductApi from '../../services/productApi';
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams();
@@ -17,8 +18,8 @@ const ProductDetail: React.FC = () => {
     let isMounted = true;
     setLoading(true);
     setError(null);
-    apiService.getProduct(productId)
-      .then((data) => { if (isMounted) setProduct(data); })
+    ProductApi.getProductById(productId)
+      .then((data) => { if (isMounted) console.log(data), setProduct(data); })
       .catch((err) => { if (isMounted) setError(err?.message || 'Failed to load product'); })
       .finally(() => { if (isMounted) setLoading(false); });
     return () => { isMounted = false; };
@@ -41,7 +42,7 @@ const ProductDetail: React.FC = () => {
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <div className="flex items-start space-x-6">
             <img
-              src={product.image_url || 'https://via.placeholder.com/240'}
+              src={product.imageUrl || 'https://via.placeholder.com/240'}
               alt={product.name}
               className="w-48 h-48 object-cover rounded-lg border"
               onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://via.placeholder.com/240'; }}
@@ -52,23 +53,23 @@ const ProductDetail: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div>
                   <p className="text-sm text-gray-500">Category</p>
-                  <p className="text-sm font-medium text-gray-900">{product.category || '-'}</p>
+                  <p className="text-sm font-medium text-gray-900">{product.Category.name || '-'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Price</p>
-                  <p className="text-sm font-medium text-gray-900">₹{(product.price || 0).toLocaleString()}</p>
+                  <p className="text-sm font-medium text-gray-900">₹{(product.sellingPrice || 0).toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Stock</p>
-                  <p className="text-sm font-medium text-gray-900">{product.stock}</p>
+                  <p className="text-sm font-medium text-gray-900">{product.totalStock || 0}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Created</p>
-                  <p className="text-sm font-medium text-gray-900">{product.created_at ? new Date(product.created_at).toLocaleString() : '—'}</p>
+                  <p className="text-sm font-medium text-gray-900">{product.createdAt ? new Date(product.createdAt).toLocaleString() : '—'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Updated</p>
-                  <p className="text-sm font-medium text-gray-900">{product.updated_at ? new Date(product.updated_at).toLocaleString() : '—'}</p>
+                  <p className="text-sm font-medium text-gray-900">{product.updatedAt ? new Date(product.updatedAt).toLocaleString() : '—'}</p>
                 </div>
               </div>
             </div>

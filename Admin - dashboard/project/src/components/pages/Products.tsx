@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Search, Filter, Download, Upload, Eye, Edit, Trash2, Package, AlertTriangle, TrendingUp, X, RefreshCw } from 'lucide-react';
 import { apiService, type Product } from '../../services/api';
+import ProductApi from '../../services/productApi';
 
 const PLACEHOLDER_IMG = 'https://via.placeholder.com/100';
 
@@ -45,7 +46,8 @@ const Products: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiService.getProducts();
+      const data = await ProductApi.getAllProducts();
+      console.log(data)
       setProducts(data);
     } catch (err: any) {
       setError(err?.message || 'Failed to load products');
@@ -60,17 +62,17 @@ const Products: React.FC = () => {
 
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
-      const matchesSearch = (product.name || '').toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'all' || (product.category || '').toLowerCase() === selectedCategory;
+      const matchesSearch = (product.productName || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === 'all' || (product.Category.name || '').toLowerCase() === selectedCategory;
       // Derive status: low_stock if stock < 10, out_of_stock if 0, else active
-      const derivedStatus = product.stock <= 0 ? 'out_of_stock' : (product.stock < 10 ? 'low_stock' : 'active');
+      const derivedStatus = product.totalStock <= 0 ? 'out_of_stock' : (product.totalStock < 10 ? 'low_stock' : 'active');
       const matchesStatus = selectedStatus === 'all' || derivedStatus === selectedStatus;
       return matchesSearch && matchesCategory && matchesStatus;
     });
   }, [products, searchTerm, selectedCategory, selectedStatus]);
 
   const totalValue = useMemo(() => {
-    return products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0);
+    return products.reduce((sum, p) => sum + ((p.sellingPrice || 0) * (p.totalStock || 0)), 0);
   }, [products]);
 
   const getStatusColor = (status: string) => {
@@ -96,12 +98,12 @@ const Products: React.FC = () => {
   const openEdit = (p: Product) => {
     setEditingProduct(p);
     setEditForm({
-      name: p.name || '',
+      name: p.productName || '',
       description: p.description || '',
-      price: p.price || 0,
-      stock: p.stock || 0,
-      category: p.category || '',
-      image_url: p.image_url || ''
+      price: p.sellingPrice || 0,
+      stock: p.totalStock || 0,
+      category: p.Category.name || '',
+      image_url: p.imageUrl || ''
     });
     setSaveError(null);
     setIsEditOpen(true);
@@ -151,14 +153,14 @@ const Products: React.FC = () => {
   const exportCSV = () => {
     const rows = filteredProducts.map(p => ({
       id: p.id,
-      name: p.name,
-      category: p.category,
-      stock: p.stock,
-      price: p.price,
-      status: deriveStatus(p.stock),
-      image_url: p.image_url,
-      created_at: p.created_at,
-      updated_at: p.updated_at,
+      name: p.productName,
+      category: p.Category.name,
+      stock: p.totalStock,
+      price: p.sellingPrice,
+      status: deriveStatus(p.totalStock),
+      image_url: p.imageUrl,
+      created_at: p.createdAt,
+      updated_at: p.updatedAt,
     }));
     const headers = Object.keys(rows[0] || {
       id: '', name: '', category: '', stock: '', price: '', status: '', image_url: '', created_at: '', updated_at: ''
@@ -224,7 +226,7 @@ const Products: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Active Products</p>
-              <p className="text-2xl font-bold text-gray-900">{products.filter(p => deriveStatus(p.stock) === 'active').length}</p>
+              <p className="text-2xl font-bold text-gray-900">{products.filter(p => deriveStatus(p.totalStock) === 'active').length}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <Eye className="w-6 h-6 text-green-600" />
@@ -235,7 +237,7 @@ const Products: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Low Stock</p>
-              <p className="text-2xl font-bold text-gray-900">{products.filter(p => deriveStatus(p.stock) === 'low_stock').length}</p>
+              <p className="text-2xl font-bold text-gray-900">{products.filter(p => deriveStatus(p.totalStock) === 'low_stock').length}</p>
             </div>
             <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
               <AlertTriangle className="w-6 h-6 text-red-600" />
@@ -336,36 +338,36 @@ const Products: React.FC = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredProducts.map((product) => {
-                  const status = deriveStatus(product.stock);
+                  const status = deriveStatus(product.totalStock);
                   return (
                     <tr key={product.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <img 
-                            src={isSafeImageUrl(product.image_url) ? product.image_url as string : PLACEHOLDER_IMG}
-                            alt={product.name}
+                            src={isSafeImageUrl(product.imageUrl) ? product.imageUrl as string : PLACEHOLDER_IMG}
+                            alt={product.productName}
                             className="w-10 h-10 rounded-lg object-cover mr-3"
                             referrerPolicy="no-referrer"
                             onError={(e) => { (e.currentTarget as HTMLImageElement).src = PLACEHOLDER_IMG; }}
                           />
                           <div>
                             <div className="text-sm font-medium text-gray-900">
-                              <a href={`/products/${product.id}`} className="hover:underline">{product.name}</a>
+                              <a href={`/products/${product.id}`} className="hover:underline">{product.productName}</a>
                             </div>
                             <div className="text-xs text-gray-500">ID: {product.id}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {product.category || '-'}
+                        {product.Category.name || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`text-sm font-medium ${status === 'low_stock' ? 'text-red-600' : 'text-gray-900'}`}>
-                          {product.stock}
+                          {product.totalStock}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ₹{(product.price || 0).toLocaleString()}
+                        ₹{(product.sellingPrice || 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(status)}`}>

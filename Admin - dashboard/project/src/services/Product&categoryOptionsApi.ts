@@ -1,28 +1,27 @@
 import axiosClient from "../api/axiosClient";
-import { ProductResponse } from "../types/product.types";
 
 const categoryApi = {
 
-  getProductTypes: async (): Promise<ProductResponse[]> => {
+  getProductTypes: async () => {
      const res = await axiosClient.get(`/product-types`, {
     });
     return res.data;
   },
 
-    getGenders: async (): Promise<ProductResponse[]> => {
+    getGenders: async () => {
      const res = await axiosClient.get(`/genders`, {
     });
     return res.data;
   },
 
-  getCategories: async (data:object): Promise<ProductResponse[]> => {
+  getCategories: async (data:object) => {
     console.log(data)
     const res = await axiosClient.post(`/categories/options`, data);
     return res.data;
   },
 
 
-  getSubCategories: async (categoryId:Number): Promise<ProductResponse[]> => {
+  getSubCategories: async (categoryId:Number) => {
     const res = await axiosClient.post(`/subcategories/options`, {categoryId:categoryId});
     return res.data;
   },

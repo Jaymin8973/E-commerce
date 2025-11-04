@@ -5,14 +5,16 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
 
 export interface Product {
   id: number;
-  name: string;
+  productName: string;
   description: string;
-  price: number;
-  stock: number;
-  category: string;
-  image_url: string;
-  created_at: string;
-  updated_at: string;
+  sellingPrice: number;
+  totalStock: number;
+  imageUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  Category: {
+    name: string;
+  };
 }
 
 export interface Order {

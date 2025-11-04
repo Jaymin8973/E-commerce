@@ -1,21 +1,21 @@
 import axiosClient from "../api/axiosClient";
-import { ProductPayload, ProductResponse } from "../types/product.types";
+import { ProductFormValues } from "../schemas/productSchema";
 
-const productApi = {
-  addProduct: async (data: ProductPayload): Promise<ProductResponse> => {
+const ProductApi = {
+  addProduct: async (data: ProductFormValues) => {
     const res = await axiosClient.post("/products", data);
     return res.data;
   },
 
-  getAllProducts: async (): Promise<ProductResponse[]> => {
+  getAllProducts: async () => {
     const res = await axiosClient.get("/products");
     return res.data;
   },
 
-  getProductById: async (id: number): Promise<ProductResponse> => {
+  getProductById: async (id: number) => {
     const res = await axiosClient.get(`/products/${id}`);
     return res.data;
   },
 };
 
-export default productApi;
+export default ProductApi;

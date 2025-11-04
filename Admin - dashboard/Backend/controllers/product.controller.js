@@ -50,7 +50,7 @@ export const createProduct = async (req, res) => {
     // parse body fields (numbers)
     const body = req.body;
     const productTypeRecord = await ProductType.findOne({ where: { name: body.productType } });
-    const genderRecord = await Gender.findOne({ where: { name: body.gender } });
+    const genderRecord = await Gender.findOne({ where: { gender: body.gender } });
     const categoryRecord = await Category.findOne({ where: { name: body.category } });
     const subcategoryRecord = await Subcategory.findOne({ where: { name: body.subcategory } });
 
@@ -65,9 +65,10 @@ export const createProduct = async (req, res) => {
         categoryId: categoryRecord.id,
         subcategoryId: subcategoryRecord.id,
         productName: body.productName,
+        status: body.status,
         brand: body.brand,
         shortDescription: body.shortDescription,
-        imageUrl: body.imageUrl || null, // optional main image URL
+        imageUrl: body.imageUrl || null, 
         mrp: parseFloat(body.mrp),
         sellingPrice: parseFloat(body.sellingPrice),
         discountPercent: body.discountPercent ? parseFloat(body.discountPercent) : null,
@@ -165,13 +166,11 @@ export const listProducts = async (req, res) => {
       limit,
       offset,
       order: [["createdAt", "DESC"]],
-      include: [ProductImage, ProductVariant],
+      include: [Category]
     });
 
-    return res.json({
-      meta: { total: count, page, limit, pages: Math.ceil(count / limit) },
-      products: rows,
-    });
+
+    return res.json(rows);
   } catch (err) {
     console.error("listProducts error:", err);
     return res.status(500).json({ message: err.message });
@@ -185,7 +184,7 @@ export const getProductById = async (req, res) => {
   try {
     const id = req.params.id;
     const product = await Product.findByPk(id, {
-      include: [ProductImage, ProductVariant, ProductDetailClothing, ProductDetailFootwear, ProductDetailAccessory],
+      include: [Category,ProductImage, ProductVariant, ProductDetailClothing, ProductDetailFootwear, ProductDetailAccessory],
     });
     if (!product) return res.status(404).json({ message: "Product not found" });
     return res.json(product);
