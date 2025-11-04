@@ -23,7 +23,7 @@ const app = express();
 
 // Middlewares
 app.use(cors());
-app.use(express.json()); // Handle base64 images safely
+app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
 
 // Cloudinary Config (Free Cloud Storage)

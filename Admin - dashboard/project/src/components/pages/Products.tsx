@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Filter, Download, Upload, Eye, Edit, Trash2, Package, AlertTriangle, TrendingUp, X, RefreshCw } from 'lucide-react';
-import { apiService, type Product } from '../../services/api';
+import { Plus, Search, Filter, Download, Upload, Eye, Edit, Trash2, Package, AlertTriangle, TrendingUp, X, RefreshCw, CheckCircle2 } from 'lucide-react';
+import {  type Product } from '../../services/api';
 import ProductApi from '../../services/productApi';
+import toast from 'react-hot-toast';
 
 const PLACEHOLDER_IMG = 'https://via.placeholder.com/100';
 
@@ -23,22 +24,22 @@ const Products: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+ const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   // Edit modal state
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editForm, setEditForm] = useState({
-    name: '',
+    productName: '',
     description: '',
-    price: 0,
-    stock: 0,
+    sellingPrice: 0,
+    totalStock: 0,
     category: '',
-    image_url: ''
+    imageUrl: ''
   });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Delete state
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -47,7 +48,6 @@ const Products: React.FC = () => {
     setError(null);
     try {
       const data = await ProductApi.getAllProducts();
-      console.log(data)
       setProducts(data);
     } catch (err: any) {
       setError(err?.message || 'Failed to load products');
@@ -93,17 +93,17 @@ const Products: React.FC = () => {
     }
   };
 
-  const deriveStatus = (stock: number) => (stock <= 0 ? 'out_of_stock' : (stock < 10 ? 'low_stock' : 'active'));
+  const deriveStatus = (stock: number) => (stock <= 0 ? 'out_of_stock' : (stock < 10? 'low_stock' : 'active'));
 
   const openEdit = (p: Product) => {
     setEditingProduct(p);
     setEditForm({
-      name: p.productName || '',
-      description: p.description || '',
-      price: p.sellingPrice || 0,
-      stock: p.totalStock || 0,
+      productName: p.productName || '',
+      description: p.shortDescription || '',
+      sellingPrice: p.sellingPrice || 0,
+      totalStock: p.totalStock || 0,
       category: p.Category.name || '',
-      image_url: p.imageUrl || ''
+      imageUrl: p.imageUrl || ''
     });
     setSaveError(null);
     setIsEditOpen(true);
@@ -124,10 +124,12 @@ const Products: React.FC = () => {
     setSaving(true);
     setSaveError(null);
     try {
-      const updated = await apiService.updateProduct(editingProduct.id, editForm);
+      const updated = await ProductApi.updateProduct(editingProduct.id, editForm);
       // Update local list optimistically
       setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...updated } : p));
       closeEdit();
+      toast.success('Product updated successfully');
+      loadProducts();
     } catch (e: any) {
       setSaveError(e?.message || 'Failed to save changes');
     } finally {
@@ -140,8 +142,8 @@ const Products: React.FC = () => {
     setDeletingId(id);
     setDeleteError(null);
     try {
-      await apiService.deleteProduct(id);
-      setProducts(prev => prev.filter(p => p.id !== id));
+      await ProductApi.deleteProduct(id);
+      toast.success('Product deleted successfully');
     } catch (e: any) {
       setDeleteError(e?.message || 'Failed to delete product');
       alert(`Failed to delete: ${e?.message || 'Unknown error'}`);
@@ -149,14 +151,23 @@ const Products: React.FC = () => {
       setDeletingId(null);
     }
   };
+  console.log(products)
 
   const exportCSV = () => {
     const rows = filteredProducts.map(p => ({
-      id: p.id,
-      name: p.productName,
-      category: p.Category.name,
-      stock: p.totalStock,
-      price: p.sellingPrice,
+      ProductType: p.ProductType.name,
+      Category: p.Category.name,
+      Subcategory: p.Subcategory.name,
+      Gender:p.Gender.gender,
+      ProductName: p.productName,
+      brand: p.brand,
+      shortDescription: p.shortDescription,
+      MRP: p.mrp,
+      SellingPrice: p.sellingPrice,
+      DiscountPercent:p.discountPercent,
+      SKU: p.sku,
+      HSNCode: p.hsnCode,
+      TotalStock: p.totalStock,
       status: deriveStatus(p.totalStock),
       image_url: p.imageUrl,
       created_at: p.createdAt,
@@ -182,6 +193,34 @@ const Products: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+    if (!selectedFile.name.endsWith(".xlsx") && !selectedFile.name.endsWith(".csv")) {
+      alert("Only Excel (.xlsx) or CSV files allowed!");
+      return;
+    }
+    setFile(selectedFile);
+  };
+
+
+  const handleBulkImport = async () => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      await ProductApi.bulkImportProducts(file);
+      toast.success('Products imported successfully');
+      loadProducts();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to import products');
+    } finally {
+      setUploading(false);
+      setFile(null);
+    }
+  };
+
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -198,10 +237,36 @@ const Products: React.FC = () => {
             <Download className="w-4 h-4 mr-2" />
             Export
           </button>
-          <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors" disabled>
-            <Upload className="w-4 h-4 mr-2" />
-            Bulk Upload
-          </button>
+         <label className="flex items-center px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer transition-colors">
+        <Upload className="w-4 h-4 mr-2" />
+        {file ? "Change File" : "Select Excel File"}
+        <input
+          type="file"
+          accept=".xlsx,.csv"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+      </label>
+
+      {/* Upload Button */}
+      {file && (
+        <button
+         onClick={handleBulkImport}
+          disabled={uploading}
+          className={`flex items-center px-4 py-2 rounded-lg text-white transition-colors ${
+            uploading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          {uploading ? (
+            "Uploading..."
+          ) : (
+            <>
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Submit
+            </>
+          )}
+        </button>
+      )}
           <a href="/upload" className="flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors">
             <Plus className="w-4 h-4 mr-2" />
             Add Product
@@ -279,7 +344,7 @@ const Products: React.FC = () => {
             {/* categories are free text from DB; keep a few quick filters */}
             <option value="electronics">Electronics</option>
             <option value="footwear">Footwear</option>
-            <option value="clothing">Clothing</option>
+            <option value="topwear">Topwear</option>
             <option value="accessories">Accessories</option>
           </select>
           <select 
@@ -419,8 +484,8 @@ const Products: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
                 <input
                   type="text"
-                  value={editForm.name}
-                  onChange={(e) => handleEditChange('name', e.target.value)}
+                  value={editForm.productName}
+                  onChange={(e) => handleEditChange('productName', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -438,8 +503,8 @@ const Products: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
                   <input
                     type="number"
-                    value={editForm.price}
-                    onChange={(e) => handleEditChange('price', e.target.value)}
+                    value={editForm.sellingPrice}
+                    onChange={(e) => handleEditChange('sellingPrice', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -447,8 +512,8 @@ const Products: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
                   <input
                     type="number"
-                    value={editForm.stock}
-                    onChange={(e) => handleEditChange('stock', e.target.value)}
+                    value={editForm.totalStock}
+                    onChange={(e) => handleEditChange('totalStock', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -467,8 +532,8 @@ const Products: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
                   <input
                     type="url"
-                    value={editForm.image_url}
-                    onChange={(e) => handleEditChange('image_url', e.target.value)}
+                    value={editForm.imageUrl}
+                    onChange={(e) => handleEditChange('imageUrl', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>

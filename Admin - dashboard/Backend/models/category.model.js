@@ -14,7 +14,7 @@ const Category = sequelize.define(
   {
     tableName: "categories",
     timestamps: true,
-    indexes: [{ unique: true, fields: ["productTypeId", "slug"] }], 
+    indexes: [{ fields: ["productTypeId", "slug"] }], 
   }
 );
 

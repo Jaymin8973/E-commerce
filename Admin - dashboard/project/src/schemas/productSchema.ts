@@ -14,11 +14,13 @@ export const ProductFormSchema = z.object({
     sku: z.string().min(1, "Required"),
     hsnCode: z.string().optional(),
     totalStock: z.string().min(1, "Required"),
+    shortDescription: z.string().min(1, "Required"),
+    description: z.string().min(1, "Required"),
     lowStockAlert: z.string().optional(),
     metaTitle: z.string().optional(),
     metaDescription: z.string().optional(),
     tags: z.string().optional(),
-    imageUrls: z.array(z.string()).optional(),
+    imageUrl: z.string().optional(),
     // Variants
     variants: z.array(
         z.object({

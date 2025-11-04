@@ -14,7 +14,7 @@ const Subcategory = sequelize.define(
   {
     tableName: "subcategories",
     timestamps: true,
-    indexes: [{ unique: true, fields: ["categoryId", "slug"] }],
+    indexes: [{ fields: ["categoryId", "slug"] }],
   }
 );
 

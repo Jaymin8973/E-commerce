@@ -15,7 +15,7 @@ import {
 import ProductDetailAccessory from "../models/productDetailAccessory.model.js";
 import ProductDetailClothing from "../models/productDetailClothing.model.js";
 import ProductDetailFootwear from "../models/productDetailFootwear.model.js";
-
+import xlsx from "xlsx";
 
 const fileUrl = (req, filename) => `${req.protocol}://${req.get("host")}/uploads/products/${filename}`;
 
@@ -31,19 +31,7 @@ const deleteLocalFile = (filename) => {
   }
 };
 
-/**
- * Create Product
- * Accepts multipart/form-data with product fields and productImages files
- * expected fields:
- * - productTypeId, categoryId, subcategoryId, gender, productName, brand, shortDescription,
- *   mrp, sellingPrice, discountPercent, sku, hsnCode, totalStock, lowStockAlert,
- *   metaTitle, metaDescription, tags (comma string)
- * - variants: JSON stringified array [{ size, color, stock, price }, ...]
- * - clothing: JSON stringified object (if clothing)
- * - footwear: JSON stringified object (if footwear)
- * - accessory: JSON stringified object (if accessory)
- * Files key for images = "productImages" (multiple)
- */
+
 export const createProduct = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -68,6 +56,7 @@ export const createProduct = async (req, res) => {
         status: body.status,
         brand: body.brand,
         shortDescription: body.shortDescription,
+        description: body.description,
         imageUrl: body.imageUrl || null, 
         mrp: parseFloat(body.mrp),
         sellingPrice: parseFloat(body.sellingPrice),
@@ -166,7 +155,7 @@ export const listProducts = async (req, res) => {
       limit,
       offset,
       order: [["createdAt", "DESC"]],
-      include: [Category]
+      include: [Category , ProductType , Subcategory , Gender]
     });
 
 
@@ -194,18 +183,10 @@ export const getProductById = async (req, res) => {
   }
 };
 
-/**
- * Update product
- * Accepts multipart/form-data:
- * - any product fields to update
- * - productImages files for new images
- * - removeImageFilenames: JSON string array of filenames to delete disk & DB
- * - variants: JSON string array to replace existing variants (simple replace strategy)
- * - clothing/footwear/accessory: JSON string to upsert corresponding detail rows
- */
 export const updateProduct = async (req, res) => {
   const t = await sequelize.transaction();
   try {
+    console.log(req.body)
     const id = req.params.id;
     const body = req.body;
     const product = await Product.findByPk(id, { transaction: t });
@@ -334,5 +315,97 @@ export const deleteProduct = async (req, res) => {
     await t.rollback();
     console.error("deleteProduct error:", err);
     return res.status(500).json({ message: err.message });
+  }
+};
+
+
+
+
+export const uploadBulkProducts = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+    if (!sheetData.length) return res.status(400).json({ message: "Empty sheet" });
+
+    let inserted = 0;
+    let failed = [];
+
+    for (const row of sheetData) {
+      try {
+        console.log("Hello")
+        // Validate required fields
+        if (!row.ProductName || !row.ProductType || !row.Category) {
+          console.log("Missing required fields")
+          failed.push({ row, reason: "Missing required fields" });
+          continue;
+        }
+
+        // Lookup relationships
+        const productType = await ProductType.findOne({ where: { name: row.ProductType } });
+        const category = await Category.findOne({ where: { name: row.Category } });
+        const subcategory = row.Subcategory
+          ? await Subcategory.findOne({ where: { name: row.subcategory } })
+          : null;
+        const gender = row.Gender ? await Gender.findOne({ where: { gender: row.Gender } }) : null;
+
+        if (!productType || !category) {
+          console.log("Invalid category or product type")
+          failed.push({ row, reason: "Invalid category or product type" });
+          continue;
+        }
+
+        console.log({  productName: row.ProductName,
+          brand: row.brand,
+          shortDescription: row.shortDescription,
+          mrp: row.MRP,
+          sellingPrice: row.SellingPrice,
+          discountPercent: row.DiscountPercent,
+          sku: row.SKU,
+          hsnCode: row.HSNCode,
+          totalStock: row.TotalStock,
+          status: 'active',
+          imageUrl: row.image_url,
+          productTypeId: productType.id,
+          categoryId: category.id,
+          subcategoryId: subcategory?.id,
+          genderId: gender?.id,})
+
+        await Product.create({
+          productName: row.ProductName,
+          brand: row.brand,
+          shortDescription: row.shortDescription,
+          mrp: row.MRP,
+          sellingPrice: row.SellingPrice,
+          discountPercent: row.DiscountPercent,
+          sku: row.SKU,
+          hsnCode: row.HSNCode,
+          totalStock: row.TotalStock,
+          status: 'active',
+          imageUrl: row.image_url,
+          productTypeId: productType.id,
+          categoryId: category.id,
+          subcategoryId: subcategory?.id,
+          genderId: gender?.id,
+        });
+
+        inserted++;
+      } catch (err) {
+        console.log(err.message)
+        failed.push({ row, reason: err.message });
+      }
+    }
+
+    res.json({
+      message: "Bulk upload completed",
+      inserted,
+      failedCount: failed.length,
+      failed,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };

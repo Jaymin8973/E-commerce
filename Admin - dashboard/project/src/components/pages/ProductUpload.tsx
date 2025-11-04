@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useFieldArray, useForm } from 'react-hook-form';
 import { ProductFormSchema } from '../../schemas/productSchema';
 import ProductApi from '../../services/productApi';
+import toast from 'react-hot-toast';
 
 
 interface ProductImage {
@@ -45,6 +46,7 @@ const ProductUpload: React.FC = () => {
     control,
     handleSubmit,
     watch,
+    reset,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProductFormValues>({
@@ -118,72 +120,6 @@ const ProductUpload: React.FC = () => {
   };
 
 
-
-
-  const [formData, setFormData] = useState({
-    // Basic Info
-    productName: '',
-    brand: '',
-    description: '',
-    shortDescription: '',
-
-    // Pricing
-    mrp: '',
-    sellingPrice: '',
-    discount: '',
-
-    // SEO & Tags
-    metaTitle: '',
-    metaDescription: '',
-    tags: '',
-
-    // Clothing Specific
-    material: '',
-    fabric: '',
-    pattern: '',
-    collarType: '',
-    sleeveType: '',
-    fit: '',
-    occasion: '',
-    season: '',
-    careInstructions: '',
-
-    // Footwear Specific
-    footwearType: '',
-    heelHeight: '',
-    soleMaterial: '',
-    upperMaterial: '',
-    closure: '',
-
-    // Accessories Specific
-    accessoryType: '',
-    dimensions: '',
-    weight: '',
-
-    // Shipping & Returns
-    shippingWeight: '',
-    packageDimensions: '',
-    returnPolicy: '',
-    shippingClass: '',
-
-    // Inventory
-    sku: '',
-    hsn: '',
-    totalStock: '',
-    lowStockAlert: '',
-
-    // Media
-    imageUrl: '',
-
-    // Status
-    status: 'draft'
-  });
-
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files) {
@@ -207,13 +143,13 @@ const ProductUpload: React.FC = () => {
     setImages(prev => prev.map(img => ({ ...img, isPrimary: img.id === id })));
   };
 
-  const addVariant = () => {
+  const addVariant = (data) => {
     const newVariant: ProductVariant = {
       id: Date.now().toString(),
       size: '',
       color: '',
       stock: 0,
-      price: parseFloat(formData.sellingPrice) || 0,
+      price: data.sellingPrice || 0,
       sku: ''
     };
     setVariants(prev => [...prev, newVariant]);
@@ -229,80 +165,7 @@ const ProductUpload: React.FC = () => {
     setVariants(prev => prev.filter(variant => variant.id !== id));
   };
 
-  const resetForm = () => {
-    setFormData(prev => ({
-      ...prev,
-      productName: '',
-      brand: '',
-      description: '',
-      shortDescription: '',
-      mrp: '',
-      sellingPrice: '',
-      discount: '',
-      metaTitle: '',
-      metaDescription: '',
-      tags: '',
-      material: '',
-      fabric: '',
-      pattern: '',
-      collarType: '',
-      sleeveType: '',
-      fit: '',
-      occasion: '',
-      season: '',
-      careInstructions: '',
-      footwearType: '',
-      heelHeight: '',
-      soleMaterial: '',
-      upperMaterial: '',
-      closure: '',
-      accessoryType: '',
-      dimensions: '',
-      weight: '',
-      shippingWeight: '',
-      packageDimensions: '',
-      returnPolicy: '',
-      shippingClass: '',
-      sku: '',
-      hsn: '',
-      totalStock: '',
-      lowStockAlert: '',
-      imageUrl: '',
-      status: 'draft'
-    }));
-    setImages([]);
-    setVariants([]);
-    setCategory('');
-    setSubCategory('');
-    setGender('men');
-    setProductType('clothing');
-  };
 
-  const Submit = async (status: 'draft' | 'active') => {
-    setIsSubmitting(true);
-    setSubmitError(null);
-    try {
-      const payload = {
-        name: formData.productName || 'Untitled Product',
-        description: formData.description || '',
-        price: parseFloat(formData.sellingPrice || '0') || 0,
-        stock: parseInt(formData.totalStock || '0') || 0,
-        category: category || 'General',
-        image_url: formData.imageUrl || '',
-      };
-
-      const created = await apiService.createProduct(payload);
-
-      alert(`Product ${status === 'draft' ? 'saved' : 'published'} successfully! (ID: ${created.id})`);
-      resetForm();
-      navigate('/products');
-    } catch (err: any) {
-      setSubmitError(err?.message || 'Failed to save product');
-      alert(`Failed to save product: ${err?.message || 'Unknown error'}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const SubmitHandle = async (data: ProductFormType, status: 'draft' | 'active') => {
     try {
@@ -310,12 +173,17 @@ const ProductUpload: React.FC = () => {
         ...data,
         status: status,
       }
-
       console.log(payload)
-
+      reset();
+       navigate('/products');
+       if (status == 'active') {
+         toast.success("Product Add successfully")
+       }
+       else{
+        toast.success("Product saved successfully")
+       }
       const Product = ProductApi.addProduct(payload)
       console.log(Product)
-      resetForm();
     } catch (error) {
       console.log(error.message)
     }
@@ -354,6 +222,7 @@ const ProductUpload: React.FC = () => {
                   ))
                 }
               </select>
+              {errors.productType && <p className="text-red-500">{errors.productType.message}</p>}
             </div>
 
             <div>
@@ -372,6 +241,7 @@ const ProductUpload: React.FC = () => {
                   ))
                 }
               </select>
+              {errors.gender && <p className="text-red-500">{errors.gender.message}</p>}
             </div>
 
             <div>
@@ -390,6 +260,7 @@ const ProductUpload: React.FC = () => {
                   ))
                 }
               </select>
+              {errors.category && <p className="text-red-500">{errors.category.message}</p>}
             </div>
           </div>
 
@@ -427,6 +298,7 @@ const ProductUpload: React.FC = () => {
                 placeholder="Enter product name"
                 required
               />
+              {errors.productName && <p className="text-red-500">{errors.productName.message}</p>}
             </div>
 
             <div>
@@ -439,6 +311,7 @@ const ProductUpload: React.FC = () => {
                 placeholder="Enter brand name"
                 required
               />
+              {errors.brand && <p className="text-red-500">{errors.brand.message}</p>}
             </div>
 
             <div className="md:col-span-2">
@@ -450,6 +323,7 @@ const ProductUpload: React.FC = () => {
                 placeholder="Brief product description (max 160 characters)"
                 maxLength={160}
               />
+              {errors.shortDescription && <p className="text-red-500">{errors.shortDescription.message}</p>}
             </div>
 
             <div className="md:col-span-2">
@@ -462,6 +336,7 @@ const ProductUpload: React.FC = () => {
                 placeholder="Detailed product description"
                 required
               />
+              {errors.description && <p className="text-red-500">{errors.description.message}</p>}
             </div>
 
             <div className="md:col-span-2">
@@ -472,6 +347,7 @@ const ProductUpload: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="https://example.com/image.jpg"
               />
+              {errors.imageUrl && <p className="text-red-500">{errors.imageUrl.message}</p>}
             </div>
           </div>
         </div>
@@ -552,6 +428,7 @@ const ProductUpload: React.FC = () => {
                 placeholder="0"
                 required
               />
+              {errors.mrp && <p className="text-red-500">{errors.mrp.message}</p>}
             </div>
 
             <div>
@@ -563,6 +440,7 @@ const ProductUpload: React.FC = () => {
                 placeholder="0"
                 required
               />
+              {errors.sellingPrice && <p className="text-red-500">{errors.sellingPrice.message}</p>}
             </div>
 
             <div>
@@ -574,6 +452,7 @@ const ProductUpload: React.FC = () => {
                 placeholder="0"
                 max="100"
               />
+              {errors.discountPercent && <p className="text-red-500">{errors.discountPercent.message}</p>}
             </div>
           </div>
         </div>
@@ -591,6 +470,7 @@ const ProductUpload: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., Cotton, Polyester"
                 />
+                {errors.material && <p className="text-red-500">{errors.material.message}</p>}
               </div>
 
               <div>
@@ -601,6 +481,7 @@ const ProductUpload: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., Denim, Silk"
                 />
+                {errors.fabric && <p className="text-red-500">{errors.fabric.message}</p>}
               </div>
 
               <div>
@@ -617,6 +498,7 @@ const ProductUpload: React.FC = () => {
                   <option value="floral">Floral</option>
                   <option value="geometric">Geometric</option>
                 </select>
+                {errors.pattern && <p className="text-red-500">{errors.pattern.message}</p>}
               </div>
 
               {(category === 'topwear' || subCategory?.includes('Shirt')) && (
@@ -634,6 +516,7 @@ const ProductUpload: React.FC = () => {
                     <option value="henley">Henley</option>
                     <option value="boat">Boat Neck</option>
                   </select>
+                  {errors.collarType && <p className="text-red-500">{errors.collarType.message}</p>}
                 </div>
               )}
 
@@ -649,6 +532,7 @@ const ProductUpload: React.FC = () => {
                   <option value="sleeveless">Sleeveless</option>
                   <option value="3/4">3/4 Sleeve</option>
                 </select>
+                {errors.sleeveType && <p className="text-red-500">{errors.sleeveType.message}</p>}
               </div>
 
               <div>
@@ -664,6 +548,7 @@ const ProductUpload: React.FC = () => {
                   <option value="oversized">Oversized</option>
                   <option value="skinny">Skinny Fit</option>
                 </select>
+                {errors.fit && <p className="text-red-500">{errors.fit.message}</p>}
               </div>
 
               <div>
@@ -680,6 +565,7 @@ const ProductUpload: React.FC = () => {
                   <option value="ethnic">Ethnic</option>
                   <option value="work">Work</option>
                 </select>
+                {errors.occasion && <p className="text-red-500">{errors.occasion.message}</p>}
               </div>
 
               <div>
@@ -694,6 +580,7 @@ const ProductUpload: React.FC = () => {
                   <option value="monsoon">Monsoon</option>
                   <option value="all-season">All Season</option>
                 </select>
+                {errors.season && <p className="text-red-500">{errors.season.message}</p>}
               </div>
 
               <div className="md:col-span-2 lg:col-span-3">
@@ -704,6 +591,7 @@ const ProductUpload: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., Machine wash cold, Do not bleach"
                 />
+                {errors.careInstructions && <p className="text-red-500">{errors.careInstructions.message}</p>}
               </div>
             </div>
           </div>
@@ -727,6 +615,7 @@ const ProductUpload: React.FC = () => {
                   <option value="high">High (3-4 inches)</option>
                   <option value="very-high">Very High (4+ inches)</option>
                 </select>
+                {errors.heelHeight && <p className="text-red-500">{errors.heelHeight.message}</p>}
               </div>
 
               <div>
@@ -737,6 +626,7 @@ const ProductUpload: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., Rubber, Leather"
                 />
+                {errors.soleMaterial && <p className="text-red-500">{errors.soleMaterial.message}</p>}
               </div>
 
               <div>
@@ -747,6 +637,7 @@ const ProductUpload: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., Leather, Canvas"
                 />
+                {errors.upperMaterial && <p className="text-red-500">{errors.upperMaterial.message}</p>}
               </div>
 
               <div>
@@ -762,6 +653,7 @@ const ProductUpload: React.FC = () => {
                   <option value="velcro">Velcro</option>
                   <option value="zipper">Zipper</option>
                 </select>
+                {errors.closure && <p className="text-red-500">{errors.closure.message}</p>}
               </div>
             </div>
           </div>
@@ -783,6 +675,7 @@ const ProductUpload: React.FC = () => {
                     <option key={type} value={type}>{type}</option>
                   ))}
                 </select>
+                {errors.accessoryType && <p className="text-red-500">{errors.accessoryType.message}</p>}
               </div>
 
               <div>
@@ -793,6 +686,7 @@ const ProductUpload: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., 10cm x 5cm x 2cm"
                 />
+                {errors.dimensions && <p className="text-red-500">{errors.dimensions.message}</p>}
               </div>
 
               <div>
@@ -803,6 +697,7 @@ const ProductUpload: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="0"
                 />
+                {errors.weight && <p className="text-red-500">{errors.weight.message}</p>}
               </div>
             </div>
           </div>
@@ -990,7 +885,7 @@ const ProductUpload: React.FC = () => {
           <button
             type="button"
             className="px-4 py-2 text-gray-500 hover:text-gray-700"
-            onClick={resetForm}
+            onClick={()=>reset()}
           >
             Cancel
           </button>
